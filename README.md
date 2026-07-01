@@ -152,3 +152,171 @@ driver.quit()
 ```
 
 ---
+
+## Hight Level 
+
+ยอดเยี่ยมเลยครับ! เมื่อคุณคุ้นเคยกับพื้นฐานแล้ว การก้าวเข้าสู่ **ระดับสูง (Advanced Level)** จะเปลี่ยนจากการเขียนสคริปต์สั้นๆ ให้กลายเป็นการสร้างระบบอัตโนมัติที่มีความเสถียร จัดการกับเว็บที่ซับซ้อนได้ และมีโครงสร้างโค้ดแบบมืออาชีพครับ
+
+เรามาดูเทคนิคระดับสูงที่คนทำงานกับ Selenium ต้องรู้กันครับ
+
+---
+
+### ขั้นตอนที่ 1: การใช้ Page Object Model (POM) เพื่อจัดโครงสร้างโค้ด
+
+เมื่อโปรเจกต์ของคุณใหญ่ขึ้น การเขียนโค้ดหาปุ่มและสั่งคลิกปนกันไปหมดจะทำให้แก้ไขยากมาก (เช่น ถ้าเว็บเปลี่ยนชื่อ ID คุณต้องไปตามแก้โค้ดทุกบรรทัด)
+
+**Page Object Model (POM)** เป็น Design Pattern ที่โปรแกรมเมอร์นิยมใช้ โดยแยก "การค้นหา Elements" ออกจาก "ลอจิกการทำงาน" อย่างชัดเจน
+
+**ตัวอย่างการเขียนแบบ POM:**
+
+```python
+from selenium.webdriver.common.by import By
+
+# 1. ไฟล์สำหรับเก็บ Elements และ Actions ของหน้านั้นๆ (เช่น login_page.py)
+class LoginPage:
+    def __init__(self, driver):
+        self.driver = driver
+        # กำหนด Locators ไว้ที่เดียว
+        self.username_input = (By.ID, "user-name")
+        self.password_input = (By.ID, "password")
+        self.login_button = (By.ID, "login-button")
+
+    def enter_username(self, username):
+        self.driver.find_element(*self.username_input).send_keys(username)
+
+    def enter_password(self, password):
+        self.driver.find_element(*self.password_input).send_keys(password)
+
+    def click_login(self):
+        self.driver.find_element(*self.login_button).click()
+
+# 2. ไฟล์สคริปต์หลักที่เรียกใช้งาน (main.py)
+# driver = webdriver.Chrome()
+# login_page = LoginPage(driver)
+# login_page.enter_username("admin")
+# login_page.enter_password("1234")
+# login_page.click_login()
+
+```
+
+---
+
+### ขั้นตอนที่ 2: การจำลองเมาส์และคีย์บอร์ดขั้นสูงด้วย ActionChains
+
+บางครั้งการใช้ `.click()` ธรรมดาอาจไม่พอ เช่น คุณต้องการ "เอาเมาส์ไปชี้ค้างไว้ (Hover) เพื่อให้เมนูกางออก" หรือ "ลากแล้ววาง (Drag and Drop)" เราจะใช้คลาส `ActionChains` ครับ
+
+```python
+from selenium import webdriver
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.common.by import By
+
+driver = webdriver.Chrome()
+driver.get("https://example.com")
+
+# สร้าง Object ของ ActionChains
+actions = ActionChains(driver)
+
+# ตัวอย่างที่ 1: เอาเมาส์ไปชี้ (Hover) ที่เมนู แล้วคลิกเมนูย่อย
+main_menu = driver.find_element(By.ID, "dropdown-menu")
+sub_menu = driver.find_element(By.ID, "sub-menu-item")
+
+actions.move_to_element(main_menu).click(sub_menu).perform()
+
+# ตัวอย่างที่ 2: การลากแล้ววาง (Drag and Drop)
+source = driver.find_element(By.ID, "draggable")
+target = driver.find_element(By.ID, "droppable")
+
+actions.drag_and_drop(source, target).perform()
+
+```
+
+> **จุดสำคัญ:** อย่าลืมใส่ `.perform()` ต่อท้ายเสมอ ไม่เช่นนั้นคำสั่งทั้งหมดจะไม่ถูกทำงานจริง
+
+---
+
+### ขั้นตอนที่ 3: การแทรกแซงด้วย JavaScript (Execute Script)
+
+มีหลายกรณีที่ Selenium แบบปกติทำงานไม่ได้ เช่น ปุ่มถูกองค์ประกอบอื่นบังอยู่ (Element is not clickable at point) หรือต้องการดึงข้อมูลที่อยู่ใน Shadow DOM การสั่งรัน JavaScript ตรงๆ เข้าไปในเบราว์เซอร์คือไม้ตายสุดท้ายที่แก้ปัญหาได้แทบทุกอย่าง
+
+```python
+driver = webdriver.Chrome()
+driver.get("https://example.com")
+
+# ตัวอย่างที่ 1: การเลื่อนหน้าจอ (Scroll) ลงไปล่างสุด
+driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+
+# ตัวอย่างที่ 2: บังคับคลิกปุ่มที่โดนบังอยู่ (ใช้ JS คลิกแทน)
+hidden_button = driver.find_element(By.ID, "hidden-btn")
+driver.execute_script("arguments[0].click();", hidden_button)
+
+# ตัวอย่างที่ 3: ดึงค่าบางอย่างจากหน้าเว็บโดยใช้ JS
+page_title = driver.execute_script("return document.title;")
+print(page_title)
+
+```
+
+---
+
+### ขั้นตอนที่ 4: การสลับไปจัดการ iFrame และหน้าต่างใหม่ (Window Handles)
+
+เว็บสมัยใหม่มักมีการซ้อนเว็บอื่นไว้ในกรอบ (iFrame) หรือเมื่อคลิกแล้วเปิดแท็บใหม่ ถ้าคุณไม่สั่งให้ Selenium "ย้ายโฟกัส" มันจะหาปุ่มในหน้าต่างใหม่ไม่เจอเลย
+
+**การย้ายไปแท็บใหม่:**
+
+```python
+# สมมติว่าคลิกลิงก์แล้วมีแท็บใหม่เด้งขึ้นมา
+driver.find_element(By.ID, "open-new-tab").click()
+
+# ดึงรายชื่อหน้าต่าง (Tabs) ทั้งหมดที่เปิดอยู่ (หน้าต่างล่าสุดจะอยู่ท้ายสุด)
+windows = driver.window_handles
+
+# สั่งสลับการควบคุมไปยังแท็บใหม่ (Index 1)
+driver.switch_to.window(windows[1])
+print("ตอนนี้เราอยู่ในแท็บใหม่แล้ว:", driver.title)
+
+# หากต้องการกลับมาแท็บเดิม
+# driver.switch_to.window(windows[0])
+
+```
+
+**การเจาะเข้าไปใน iFrame:**
+
+```python
+# ต้องสลับเข้าไปใน iFrame ก่อนถึงจะกดปุ่มที่อยู่ข้างในนั้นได้
+iframe = driver.find_element(By.ID, "payment-frame")
+driver.switch_to.frame(iframe)
+
+# หลังจากทำธุระใน iFrame เสร็จ ต้องสลับกลับมาหน้าเว็บหลัก
+driver.switch_to.default_content()
+
+```
+
+---
+
+### ขั้นตอนที่ 5: การหลบหลีกระบบป้องกันบอท (Anti-Bot Bypass)
+
+ในระดับสูง ปัญหาปวดหัวที่สุดคือเว็บไซต์จับได้ว่าเราใช้ Selenium (เช่น เจอหน้า Cloudflare หรือ reCAPTCHA กั้น) เพราะ Chrome Driver ปกติจะมีตัวแปรบางอย่างฝังมาเพื่อบอกว่าตัวมันคือบอท
+
+เราจะใช้ไลบรารีทางเลือกที่ชื่อว่า `undetected-chromedriver` ซึ่งออกแบบมาเพื่อลบร่องรอยความเป็นบอทออกทั้งหมด
+
+**การติดตั้ง:** `pip install undetected-chromedriver`
+
+**วิธีใช้งาน:**
+
+```python
+import undetected_chromedriver as uc
+import time
+
+# ใช้ uc แทน webdriver แบบปกติ
+options = uc.ChromeOptions()
+options.add_argument("--disable-popup-blocking")
+
+driver = uc.Chrome(options=options)
+driver.get("https://nowsecure.nl/") # เว็บทดสอบระบบป้องกันบอท
+
+time.sleep(10)
+driver.quit()
+
+```
+
+---
